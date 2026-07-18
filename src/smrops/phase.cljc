@@ -8,8 +8,10 @@
                                        needs human approval.
     Phase 2  assisted-recordkeeping -- adds licensing-submission
                                        drafting, fuel-custody-record
-                                       logging and community-benefit-
-                                       report drafting writes, still
+                                       logging, community-benefit-
+                                       report drafting and (additive,
+                                       ADR-2800000500) power-supply-
+                                       agreement logging writes, still
                                        approval.
     Phase 3  supervised auto        -- governor-clean, high-confidence
                                        `:log-safety-inspection-record`/
@@ -33,7 +35,19 @@
   phase, because both are HARD (governor-hold always wins over the
   phase gate, see `gate` below) -- there is no phase number at which a
   live reactor-safety-critical actuation request becomes eligible for
-  this actor to commit."
+  this actor to commit.
+
+  ── Additive: power-supply-agreement logging (ADR-2800000500) ──
+
+  `:log-power-supply-agreement` joins phase 2's `:writes` alongside
+  the other recordkeeping ops, but -- unlike them -- is deliberately
+  ABSENT from phase 3's `:auto` set: a cross-actor commercial
+  commitment (naming which downstream feeder this facility supplies)
+  gets a stricter, always-approved posture in this V1, the SAME
+  'enabled early, never auto' choice `grid.phase`'s own
+  `:feeder/log-status` (`cloud-itonami-isic-3510`) makes for its
+  matching half of this same optional linkage. Phase 3's `:auto` set
+  is UNCHANGED by this addition."
   (:require [smrops.governor :as governor]))
 
 (def read-ops #{})
@@ -48,7 +62,8 @@
   {0 {:label "read-only"               :writes #{}                                                     :auto #{}}
    1 {:label "assisted-inspection"     :writes #{:log-safety-inspection-record}                        :auto #{}}
    2 {:label "assisted-recordkeeping"  :writes #{:log-safety-inspection-record :draft-licensing-submission
-                                                 :log-fuel-custody-record :draft-community-benefit-report} :auto #{}}
+                                                 :log-fuel-custody-record :draft-community-benefit-report
+                                                 :log-power-supply-agreement}                            :auto #{}}
    3 {:label "supervised-auto"         :writes write-ops
       :auto #{:log-safety-inspection-record :draft-licensing-submission
               :log-fuel-custody-record :draft-community-benefit-report}}})

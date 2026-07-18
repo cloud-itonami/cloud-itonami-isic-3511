@@ -3,10 +3,14 @@
   SMR (Small Modular Reactor) generation-operations-COORDINATION
   actor.
 
-  It drafts exactly five kinds of compliance-recordkeeping proposal
+  It drafts exactly six kinds of compliance-recordkeeping proposal
   from a closed allowlist: safety-inspection-record logging,
   licensing-submission DRAFTING, fuel-custody-record logging,
-  community-benefit-report DRAFTING, and safety-concern flagging.
+  community-benefit-report DRAFTING, safety-concern flagging, and
+  (additive, see `propose-power-supply-agreement`/superproject
+  ADR-2800000500) power-supply-agreement logging -- a downstream
+  electric-distribution-utility feeder's (`cloud-itonami-isic-3510`)
+  own optional cross-actor linkage.
   CRITICAL: it is a smart-but-untrusted advisor. It returns a
   *proposal* (with a rationale + the fields it cited), never a
   committed record and NEVER a direct actuation -- every proposal's
@@ -150,6 +154,31 @@
    :value      (merge {:site-id site-id} patch)
    :confidence (get patch :confidence 0.9)})
 
+(defn- propose-power-supply-agreement
+  "Draft a POWER-SUPPLY-AGREEMENT LOG entry -- logging (not
+  authorizing) this facility's own ALREADY-AGREED interconnection/
+  power-purchase capacity commitment toward a downstream electric-
+  distribution-utility feeder (`cloud-itonami-isic-3510`). The `:power-
+  supply/*` fields (`:power-supply/id`/`:power-supply/source-actor`/
+  `:power-supply/feeder-ref`/`:power-supply/capacity-mw`/`:power-
+  supply/agreement-start-iso`) are the SAME shared, no-code, flat wire
+  shape isic-3510's own `grid.gridadvisor/register-power-supply`
+  consumes -- see superproject ADR-2800000500. Pure logging of an
+  arrangement that ALREADY EXISTS -- never a real-time generation-
+  dispatch decision, and never itself a contract negotiation. Like
+  `propose-fuel-custody-record` above, this is the SAME 'log an
+  already-occurred/agreed fact' shape, applied to a commercial
+  interconnection commitment instead of a physical custody transfer."
+  [_db {:keys [site-id patch]}]
+  {:op         :log-power-supply-agreement
+   :site-id    site-id
+   :summary    (str site-id " の電力供給契約記録を提案: " (pr-str (keys patch)))
+   :rationale  "既に合意済みの電力供給契約(:power-supply/*)の記録提案のみ。新規の契約交渉・発電量の即時決定は行わない。"
+   :cites      [site-id]
+   :effect     :propose
+   :value      (merge {:site-id site-id} patch)
+   :confidence 0.9})
+
 (defn- propose-out-of-scope
   "Test/failure-mode hook: drafts a proposal that touches the broad,
   permanently-excluded scope territory (control-rod operation/
@@ -201,6 +230,7 @@
     (= op :log-fuel-custody-record)       (propose-fuel-custody-record db request)
     (= op :draft-community-benefit-report) (propose-community-benefit-report db request)
     (= op :flag-safety-concern)           (propose-safety-concern db request)
+    (= op :log-power-supply-agreement)    (propose-power-supply-agreement db request)
     :else {:op op :site-id (:site-id request)
            :summary "未対応の操作" :rationale (str "closed allowlist に無い操作: " op)
            :cites [] :effect :propose :value {} :confidence 0.0}))

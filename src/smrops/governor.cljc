@@ -157,10 +157,18 @@
 
 (def allowed-ops
   "The closed proposal-op allowlist -- an op outside this set is a
-  scope violation by construction (see `scope-exclusion-violations`)."
+  scope violation by construction (see `scope-exclusion-violations`).
+  Additive: `:log-power-supply-agreement` (superproject
+  ADR-2800000500) logs an ALREADY-AGREED interconnection/power-
+  purchase capacity commitment toward a downstream electric-
+  distribution-utility feeder -- the SAME 'log an already-occurred/
+  agreed fact' shape as `:log-fuel-custody-record`, never a real-time
+  generation-dispatch decision or a live contract negotiation, so it
+  is not scope-excluded territory (see ns docstring's eight permanently
+  excluded decision areas, none of which this op touches)."
   #{:log-safety-inspection-record :draft-licensing-submission
     :log-fuel-custody-record :draft-community-benefit-report
-    :flag-safety-concern})
+    :flag-safety-concern :log-power-supply-agreement})
 
 (def always-escalate-ops
   "Ops that ALWAYS require human sign-off, clean or not."

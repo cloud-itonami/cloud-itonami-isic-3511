@@ -160,6 +160,16 @@
       (is (true? (:hard? verdict)))
       (is (false? (:escalate? verdict)) "hard? wins -- escalate? is false when hard? is true"))))
 
+;; ───────────── Additive: power-supply-agreement logging (ADR-2800000500) ─────────────
+
+(deftest power-supply-agreement-op-is-in-the-allowlist-and-passes-clean
+  (testing ":log-power-supply-agreement is NOT a scope violation -- it touches none of the eight permanently excluded decision areas"
+    (let [s (store/mem-store {"smr-site-1" site-1})
+          verdict (gov/check {} nil (clean-proposal :log-power-supply-agreement "smr-site-1") s)]
+      (is (false? (:hard? verdict)))
+      (is (empty? (filter #(= :op-not-allowed (:rule %)) (:violations verdict))))
+      (is (empty? (filter #(= :scope-excluded (:rule %)) (:violations verdict)))))))
+
 (deftest happy-path-every-op-is-clean
   (testing "each of the five allowlisted ops, clean input, registered+verified site -> ok (except the always-escalate safety flag)"
     (let [s (store/mem-store {"smr-site-1" site-1})]

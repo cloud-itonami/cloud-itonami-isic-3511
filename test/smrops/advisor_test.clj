@@ -59,6 +59,24 @@
     (is (= :draft-community-benefit-report (:op p)))
     (is (= :propose (:effect p)))))
 
+;; ───────────── Additive: power-supply-agreement logging (ADR-2800000500) ─────────────
+
+(deftest power-supply-agreement-proposal-is-always-propose-and-carries-the-patch
+  (testing "the SAME 'log an already-agreed fact' shape as :log-fuel-custody-record, applied to a :power-supply/* commitment"
+    (let [patch {:power-supply/id "ps-smr-1"
+                 :power-supply/source-actor "cloud-itonami-isic-3511"
+                 :power-supply/feeder-ref "feeder-2"
+                 :power-supply/capacity-mw 12.5
+                 :power-supply/agreement-start-iso "2026-04-01"}
+          p (advisor/infer db {:op :log-power-supply-agreement :site-id "smr-site-1" :patch patch})]
+      (is (= :propose (:effect p)))
+      (is (= :log-power-supply-agreement (:op p)))
+      (is (= "smr-site-1" (:site-id p)))
+      (is (seq (:cites p)))
+      (is (<= 0.0 (:confidence p) 1.0))
+      (is (= "ps-smr-1" (:power-supply/id (:value p))))
+      (is (= "cloud-itonami-isic-3511" (:power-supply/source-actor (:value p)))))))
+
 (deftest trace-carries-decision-grounded-fields
   (let [request {:op :log-safety-inspection-record :site-id "smr-site-1"}
         proposal (advisor/infer db request)

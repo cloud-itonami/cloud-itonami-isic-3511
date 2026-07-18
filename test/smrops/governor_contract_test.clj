@@ -188,6 +188,39 @@
       (is (= 1 (count (store/ledger db))))
       (is (= :committed (:t (first (store/ledger db))))))))
 
+;; ───────────── Additive: power-supply-agreement logging (ADR-2800000500) ─────────────
+;;
+;; The generation-side half of the entirely optional, no-shared-code
+;; isic-3511 <-> isic-3510 cross-actor contract -- logs an
+;; already-agreed interconnection/power-purchase commitment toward a
+;; downstream electric-distribution-utility feeder.
+
+(deftest power-supply-agreement-log-needs-approval-even-at-phase-3
+  (testing "deliberately ABSENT from phase 3's :auto set -- see smrops.phase ns docstring"
+    (let [[db actor] (fresh)
+          res (exec-op actor "p1"
+                    {:op :log-power-supply-agreement :site-id "smr-site-1"
+                     :patch {:power-supply/id "ps-smr-1"
+                             :power-supply/source-actor "cloud-itonami-isic-3511"
+                             :power-supply/feeder-ref "feeder-2"
+                             :power-supply/capacity-mw 12.5
+                             :power-supply/agreement-start-iso "2026-04-01"}}
+                    operator-phase-3)]
+      (is (= :interrupted (:status res)) "never auto-commits, even governor-clean at phase 3")
+      (let [r2 (approve! actor "p1")]
+        (is (= :commit (get-in r2 [:state :disposition])))
+        (is (= 1 (count (store/coordination-log db))))
+        (is (= :log-power-supply-agreement (:op (first (store/coordination-log db)))))))))
+
+(deftest power-supply-agreement-log-disabled-before-phase-2
+  (testing "phase 1 does not yet enable this op -> HOLD, :phase-disabled"
+    (let [[db actor] (fresh)
+          res (exec-op actor "p2"
+                    {:op :log-power-supply-agreement :site-id "smr-site-1" :patch {}}
+                    operator-phase-1)]
+      (is (= :hold (get-in res [:state :disposition])))
+      (is (= [] (store/coordination-log db))))))
+
 (deftest every-decision-leaves-one-ledger-fact
   (testing "write-only-through-ledger: N operations -> N ledger facts"
     (let [[db actor] (fresh)]

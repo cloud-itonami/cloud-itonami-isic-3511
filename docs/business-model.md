@@ -1,73 +1,81 @@
 # Business Model: Small Modular Reactor Generation Operations
 
-## Classification
+> **Generated baseline.** This is an honest, registry- and blueprint-grounded
+> business-model baseline for a fleet actor. The flagship landings (Meta Job
+> Search / Talent Board / Placement Desk) carry hand-written, domain-deep
+> business models; fleet actors carry this generated baseline. Unit-economics
+> figures below are illustrative and **not yet measured at fleet scale** — a
+> shape, not a reported metric. Regenerate with
+> `nbb scripts/gen-actor-business-model.cljs <repo>` in `kotoba-lang/industry`.
 
-- Repository: `cloud-itonami-isic-3511`
-- ISIC Rev.5: `3511`
-- Activity: production of electricity from non-renewable sources (this
-  R0's honest scope: the SMR/nuclear generation-operator compliance-
-  recordkeeping niche only -- see README `Business-process coverage`)
-- Social impact: decarbonization (SMR firm baseload complements
-  variable renewables), grid reliability, and a market-entry-
-  compliance moat for jurisdictions with heavy licensing burden
+## Classification
+- Repository: `cloud-itonami-isic-3511` ([github.com/cloud-itonami/cloud-itonami-isic-3511](https://github.com/cloud-itonami/cloud-itonami-isic-3511))
+- ISIC Rev.5: `3511` — Small Modular Reactor Generation Operations
+- Domain: `:energy/nuclear-generation`
+- Social impact: :decarbonization :grid-reliability :market-entry-compliance
+- Actor: `:smr-operations-governor` — an independent Governor in the fleet's Sealed-LLM
+  ⊣ Governor pattern (langgraph-clj StateGraph, append-only audit ledger,
+  Phase 0→3 rollout). Robotics authority: none — a HARD permanent block; this actor holds NO field-equipment-control authority, every real-world act is human-carried.
 
 ## Customer
-
-- SMR generation-operator companies (first-of-a-kind and fleet
-  operators)
-- utilities piloting or co-owning an SMR project
-- regulatory-affairs / licensing counsel teams supporting an operator
-- community-relations teams needing auditable public-disclosure
-  reporting
+An operator running this vertical as an OSS business — :energy/nuclear-generation — who wants
+a governed execution scaffold they own instead of renting a closed SaaS.
 
 ## Offer
+The actor coordinates the :intake :inspect :license-draft :fuel-custody :benefit-report :flag-concern :audit pipeline behind an independent Governor: the
+advisor proposes only; the Governor HARD-blocks any proposal that fails a
+spec-basis / evidence / actuation check; every real-world actuation is a
+human sign-off (never autonomous, at any phase); every decision is recorded
+in an append-only audit ledger. The full governor-check enumeration for this
+vertical lives in `blueprint.edn`'s `:itonami.blueprint/implemented-slice`
+and the `README.md`.
 
-- safety-inspection-record logging and audit trail
-- licensing-submission drafting assistance (per-jurisdiction spec-
-  cited checklist, DRAFT ONLY -- operator/counsel signs and files)
-- fuel-custody-record logging
-- community-benefit / public-disclosure report drafting
-- safety-concern intake and escalation workflow
-- compliance and audit reporting package
+Capability stack (required): :identity :forms :dmn :bpmn :audit-ledger. Optional: :telemetry.
 
 ## Revenue
+Self-host is AGPL-3.0-or-later (free). Managed tenancy and compliance
+packages are the revenue, in the same ¥50k–150k/月 band the sibling flagships
+anchor against real competitor SaaS — see the flagship `docs/business-model.md`
+files and `90-docs/pricing-intelligence` for the market-anchoring methodology.
 
-- facility setup / onboarding fee
-- monthly managed compliance-recordkeeping operations
-- per-jurisdiction licensing-submission drafting package
-- compliance and audit reporting package
-- support and integration services
+## Unit Economics (worked example, illustrative)
+One managed tenant (:energy/nuclear-generation):
+- infrastructure: actor runtime + store — runs at decision time, not per query
+- LLM cost: proposals only at each operating step — bounded, because lookups
+  never call a model
+- human-approval labor: every real-world actuation is a human sign-off — the
+  real cost driver
+- support: budget a few hours/月 until feeds and jurisdiction catalogs stabilize
 
-## Why SMR specifically (market rationale)
+**These figures are illustrative and not yet measured at fleet scale.** Track
+per operator: decisions/月, % proposals HARD-held (data-quality signal),
+actuation-approval hours, churn.
 
-Small Modular Reactors are a fast-growing generation segment (multiple
-jurisdictions actively running licensing/design-assessment programs --
-see `smrops.facts` for cited regulator sources) with a HEAVY licensing
-and compliance burden relative to plant size -- exactly the kind of
-market-entry-compliance moat this fleet's own thesis targets (ADR-
-2607121000 Top-10 item #6, iso3166×223-country compliance layer
-pattern). A governed, audit-ready recordkeeping layer lowers the fixed
-cost of standing up compliance operations for each new SMR site/
-jurisdiction pair, without this actor ever approaching the reactor-
-safety-critical decision surface itself.
+## Open Participation
+Anyone may fork, run the demo, self-host, submit patches, and publish
+jurisdiction catalog entries (with official citations — never fabricated).
+itonami.cloud certification is required before an operator is listed,
+receives leads, or runs managed tenants under the platform brand.
+
+## Operator Trust Levels
+| Level | Capability |
+|---|---|
+| Contributor | patches, docs, jurisdiction catalog entries, examples |
+| Self-host operator | runs their own instance, no platform endorsement |
+| Certified operator | listed on itonami.cloud after review |
+| Managed operator | may receive leads and operate customer tenants |
+| Core maintainer | can approve changes to governor, security and governance |
 
 ## Trust Controls
+- a proposal the governor refuses is never committed or actuated
+- every real-world actuation is a human sign-off (never autonomous, at any phase)
+- every decision (commit OR hold) is recorded in the append-only audit ledger
+- sensitive operating and personal data stays outside Git
 
-- every proposal is `:effect :propose` -- never a direct actuation
-- a fabricated licensing spec-basis citation, an unregistered/
-  unverified facility, or a non-`:propose` effect -- each forces a
-  hold, not an override
-- control-rod operation, reactor-trip/scram decisions, criticality-
-  safety determinations, radiological-release/dose authorization,
-  containment-integrity overrides, emergency-evacuation orders, fuel-
-  loading/refueling sequencing and security-force response decisions
-  are PERMANENTLY excluded, evaluated on every proposal regardless of
-  op or confidence
-- a proposal that is ITSELF a live radiological-release/scram
-  authorization request is blocked ABSOLUTELY, with a second,
-  independent enforcement point at commit time
-- every recommendation, hold, escalation and approval is logged to an
-  immutable audit ledger
-- licensing-submission and fuel-custody records carry an UNSIGNED
-  certificate -- signature/filing is always the operator's/counsel's
-  own act
+## Non-Negotiables
+- Do not commit real customer / operating / personal data.
+- Do not bypass the `:smr-operations-governor` for production decisions.
+- Do not market an uncertified deployment as an itonami.cloud certified operator.
+- Any jurisdiction licence / registration this vertical requires is the
+  operator's own legal duty; the software is the governed execution scaffold,
+  not the licence.

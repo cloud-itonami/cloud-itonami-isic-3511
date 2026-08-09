@@ -8,18 +8,28 @@
  ;; actuation one -- it never touches control-rod operation, a
  ;; reactor-trip/scram decision, or any other reactor-safety-critical
  ;; act, see src/smrops/governor.cljc).
- :deps {io.github.kotoba-lang/langgraph
+ ;; jp-go-digital-design-system: DADS skin for the build-time operator
+ ;; console (flagship checklist item 2 / ADR-2607189300).
+ :deps {io.github.kotoba-lang/jp-go-digital-design-system
+        {:git/url "https://github.com/kotoba-lang/jp-go-digital-design-system"
+         :git/sha "83db99546eabc53613ae826ea41d1533a3c574af"}
+        io.github.kotoba-lang/langgraph
         {:git/sha "a332a770a0d2b5193f81b54483bb954fb29ef8d7"}}
  :aliases
- {;; monorepo-internal dev -- pin transitive langgraph/langchain to
+ {;; monorepo-internal dev -- pin transitive langgraph/langchain/dds to
   ;; local checkouts when working inside the com-junkawasaki superproject.
   :dev {:override-deps
-        {io.github.kotoba-lang/langgraph
+        {io.github.kotoba-lang/jp-go-digital-design-system
+         {:local/root "../../kotoba-lang/jp-go-digital-design-system"}
+         io.github.kotoba-lang/langgraph
          {:local/root "../../kotoba-lang/langgraph"}
          io.github.kotoba-lang/langchain
          {:local/root "../../kotoba-lang/langchain"}}}
-  ;; clojure -M:run  -> drive the demo through one OperationActor
+  ;; clojure -M:dev:run  -> drive the demo through one OperationActor
   :run {:main-opts ["-m" "smrops.sim"]}
+  ;; clojure -M:dev:render-html [out-file] -> regenerate
+  ;; docs/samples/operator-console.html through the real actor
+  ;; (flagship checklist item 2, ADR-2607189300).
   :render-html {:main-opts ["-m" "smrops.render-html"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner

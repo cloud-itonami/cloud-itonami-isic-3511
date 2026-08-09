@@ -1,76 +1,314 @@
 (ns smrops.render-html
-  "Build-time HTML renderer. Drives the REAL actor stack deterministically."
-  (:require [clojure.string :as str]
+  "Build-time HTML renderer for `docs/samples/operator-console.html`.
+
+  Closes flagship checklist item 2 (com-junkawasaki/root ADR-2607189300,
+  Wave3/Wave5 rollout): the previous generator on main drove the real
+  actor but rendered against the WRONG field names (`:subject` /
+  `:id` instead of this actor's `:site-id`), so every site row showed
+  empty ids and a false HARD-hold, and the action-gate copy mis-stated
+  phase-3 auto eligibility. This namespace drives the REAL actor stack
+  (`smrops.operation` -> `smrops.governor` -> `smrops.store`) through a
+  scenario adapted from this repo's own `smrops.sim` demo driver
+  (`clojure -M:dev:run`, confirmed against the seeded site ids
+  `smr-site-1`..`smr-site-3` in `smrops.store/demo-data`), covering
+  phase-1 escalate+approve, phase-3 auto-commits, always-escalate
+  safety-concern, and distinct HARD holds (unregistered facility,
+  unverified facility, effect-not-propose, no-spec-basis,
+  scope-excluded, absolute live-actuation request). Every field the
+  page reads is real governor/store output -- no invented data.
+
+  Usage: `clojure -M:dev:render-html [out-file]`
+  (default `docs/samples/operator-console.html`)."
+  (:require [jp-go-dds.skin]
+            [clojure.string :as str]
+            [smrops.advisor :as advisor]
             [smrops.store :as store]
             [smrops.operation :as op]
             [langgraph.graph :as g]))
 
-(def ^:private op-p1 {:actor-id "op-1" :actor-role :compliance-officer :phase 1})
-(def ^:private op-p3 {:actor-id "op-1" :actor-role :compliance-officer :phase 3})
-(defn- exec! [actor tid request ctx] (g/run* actor {:request request :context ctx} {:thread-id tid}))
-(defn- approve! [actor tid] (g/run* actor {:approval {:status :approved :by "op-1"}} {:thread-id tid :resume? true}))
+;; ----------------------------- harness --------------------------------
 
-(defn run-demo! []
-  (let [db (store/seed-db) actor (op/build db)]
-    (exec! actor "t1" {:op :log-safety-inspection-record :site-id "smr-site-1" :effect :propose
-                       :patch {:volume 420 :inspector "TL-001"}} op-p1)
+(def ^:private operator-phase-1
+  {:actor-id "op-1" :actor-role :compliance-officer :phase 1})
+
+(def ^:private operator-phase-3
+  {:actor-id "op-1" :actor-role :compliance-officer :phase 3})
+
+(defn- exec! [actor tid request ctx]
+  (g/run* actor {:request request :context ctx} {:thread-id tid}))
+
+(defn- approve! [actor tid]
+  (g/run* actor {:approval {:status :approved :by "compliance-officer-1"}}
+          {:thread-id tid :resume? true}))
+
+(defn run-demo!
+  "Runs a fresh seeded store through a scenario mixing every disposition
+  this actor can reach, using ONLY real site ids from
+  `smrops.store/demo-data`:
+
+  smr-site-1 (JPN, registered+verified): phase-1
+  `:log-safety-inspection-record` escalates and is approved; phase-3
+  same op auto-commits; `:draft-licensing-submission` auto-commits
+  (JPN has a real `smrops.facts` spec-basis); `:flag-safety-concern`
+  ALWAYS escalates and is approved.
+
+  smr-site-2 (USA, registered+verified): phase-3
+  `:log-fuel-custody-record` and `:draft-community-benefit-report`
+  auto-commit (both in phase 3's `:auto` set).
+
+  Then distinct HARD holds that never reach a human:
+    - smr-site-9 (unregistered): `:facility-unverified`
+    - smr-site-3 (registered, unverified): `:facility-unverified`
+    - smr-site-1 + advisor effect :commit: `:effect-not-propose`
+    - smr-site-1 + :no-spec? true licensing: `:no-spec-basis`
+    - smr-site-1 + :out-of-scope? true: `:scope-excluded`
+    - smr-site-1 + :absolute-actuation-test? true:
+      `:absolute-live-actuation-request`
+
+  Returns the resulting store -- every field `render` below reads is
+  real governor/store output, not a hand-typed copy."
+  []
+  (let [db (store/seed-db)
+        actor (op/build db)]
+
+    ;; smr-site-1: phase-1 safety-inspection log -- always escalates,
+    ;; human compliance officer approves.
+    (exec! actor "t1" {:op :log-safety-inspection-record :site-id "smr-site-1"
+                       :patch {:finding "routine walkdown, no anomalies"}}
+           operator-phase-1)
     (approve! actor "t1")
-    (exec! actor "t2" {:op :log-safety-inspection-record :site-id "smr-site-1" :effect :propose
-                       :patch {:volume 450 :inspector "TL-002"}} op-p3)
-    (exec! actor "t3" {:op :draft-licensing-submission :site-id "smr-site-1" :effect :propose} op-p3)
-    (exec! actor "t4" {:op :flag-safety-concern :site-id "smr-site-1" :effect :propose
-                       :patch {:concern "methane-detector-calibration-overdue"}} op-p3)
-    (approve! actor "t4")
-    (exec! actor "t5" {:op :log-safety-inspection-record :site-id "smr-site-9" :effect :propose
-                       :patch {:volume 100 :inspector "TL-999"}} op-p3)
+
+    ;; smr-site-1: phase-3 same op, clean high-confidence -- auto-commit.
+    (exec! actor "t2" {:op :log-safety-inspection-record :site-id "smr-site-1"
+                       :patch {:finding "quarterly inspection complete"}}
+           operator-phase-3)
+
+    ;; smr-site-1: licensing-submission draft (JPN has real spec-basis)
+    ;; -- phase-3 auto-commit.
+    (exec! actor "t3" {:op :draft-licensing-submission :site-id "smr-site-1"}
+           operator-phase-3)
+
+    ;; smr-site-2: fuel-custody-record log -- phase-3 auto-commit.
+    (exec! actor "t4" {:op :log-fuel-custody-record :site-id "smr-site-2"
+                       :patch {:transfer "fresh-fuel-receipt"}}
+           operator-phase-3)
+
+    ;; smr-site-2: community-benefit-report draft -- phase-3 auto-commit.
+    (exec! actor "t5" {:op :draft-community-benefit-report :site-id "smr-site-2"
+                       :patch {:period "2026-Q2"}}
+           operator-phase-3)
+
+    ;; smr-site-1: safety-concern flag -- ALWAYS escalates at any phase
+    ;; (never in phase 3's :auto set; governor always-escalate-ops),
+    ;; human approves.
+    (exec! actor "t6" {:op :flag-safety-concern :site-id "smr-site-1"
+                       :patch {:concern "containment monitoring sensor #4 reading elevated, requesting engineering review"
+                               :confidence 0.95}}
+           operator-phase-3)
+    (approve! actor "t6")
+
+    ;; smr-site-9: unregistered facility -> HARD hold :facility-unverified.
+    (exec! actor "t7" {:op :log-safety-inspection-record :site-id "smr-site-9"
+                       :patch {:finding "n/a"}}
+           operator-phase-3)
+
+    ;; smr-site-3: registered but unverified -> HARD hold :facility-unverified.
+    (exec! actor "t8" {:op :log-safety-inspection-record :site-id "smr-site-3"
+                       :patch {:finding "n/a"}}
+           operator-phase-3)
+
+    ;; smr-site-1: advisor forces :effect :commit (direct actuation claim)
+    ;; -> HARD hold :effect-not-propose.
+    (let [actor-direct (op/build db {:advisor (reify advisor/Advisor
+                                                (-advise [_ _ req]
+                                                  (assoc (advisor/infer db req) :effect :commit)))})]
+      (exec! actor-direct "t9" {:op :draft-licensing-submission :site-id "smr-site-1"}
+             operator-phase-3))
+
+    ;; smr-site-1: no-spec jurisdiction on licensing draft
+    ;; -> HARD hold :no-spec-basis.
+    (exec! actor "t10" {:op :draft-licensing-submission :site-id "smr-site-1"
+                        :no-spec? true}
+           operator-phase-3)
+
+    ;; smr-site-1: advisor drifts into control-rod/reactor-trip scope
+    ;; -> HARD hold :scope-excluded (permanent).
+    (exec! actor "t11" {:op :log-safety-inspection-record :site-id "smr-site-1"
+                        :out-of-scope? true :patch {}}
+           operator-phase-3)
+
+    ;; smr-site-1: proposal content IS a live radiological-release/scram
+    ;; authorization request -> HARD hold :absolute-live-actuation-request
+    ;; (never reaches a human; re-checked at :commit as well).
+    (exec! actor "t12" {:op :log-safety-inspection-record :site-id "smr-site-1"
+                        :absolute-actuation-test? true :patch {}}
+           operator-phase-3)
+
     db))
 
-(defn- esc [v] (-> (str v) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;")))
-(defn- last-fact-for [ledger sid] (last (filter #(= (:subject %) sid) ledger)))
-(defn- status-cell [ledger sid]
-  (let [f (last-fact-for ledger sid)]
-    (cond (nil? f) "<span class=\"muted\">no activity</span>"
+;; ----------------------------- rendering -----------------------------
+
+(defn- esc [v]
+  (-> (str v)
+      (str/replace "&" "&amp;")
+      (str/replace "<" "&lt;")
+      (str/replace ">" "&gt;")))
+
+(defn- last-fact-for
+  "This actor's ledger facts key the target site as `:site-id` (not
+  `:subject` -- that is a sibling-actor field name this repo must not
+  copy blindly)."
+  [ledger site-id]
+  (last (filter #(= (:site-id %) site-id) ledger)))
+
+(defn- status-cell [ledger site-id]
+  (let [f (last-fact-for ledger site-id)]
+    (cond
+      (nil? f) "<span class=\"muted\">no activity</span>"
       (= :committed (:t f)) "<span class=\"ok\">committed</span>"
-      (= :approval-granted (:t f)) "<span class=\"ok\">approved</span>"
-      (= :governor-hold (:t f)) (let [rule (-> f :basis first)] (str "<span class=\"critical\">HARD hold: " (esc (str (or rule :unknown))) "</span>"))
+      (= :approval-granted (:t f)) "<span class=\"ok\">approved &amp; committed</span>"
+      (= :absolute-actuation-block (:t f))
+      "<span class=\"critical\">ABSOLUTE hold &middot; absolute-live-actuation-request</span>"
+      (= :governor-hold (:t f))
+      (let [rule (or (-> f :violations first :rule)
+                     (let [b (:basis f)]
+                       (if (sequential? b) (first b) b)))]
+        (str "<span class=\"critical\">HARD hold &middot; "
+             (esc (name (or rule :unknown))) "</span>"))
       (= :approval-requested (:t f)) "<span class=\"warn\">awaiting approval</span>"
+      (= :approval-rejected (:t f)) "<span class=\"critical\">approval rejected</span>"
       :else "<span class=\"muted\">in progress</span>")))
-(defn- ledger-row [{:keys [t op subject disposition basis]}]
+
+(defn- reg-cell [site]
+  (cond
+    (and (:registered? site) (:verified? site))
+    "<span class=\"ok\">registered &amp; verified</span>"
+    (:registered? site)
+    "<span class=\"warn\">registered, unverified</span>"
+    :else
+    "<span class=\"critical\">unregistered</span>"))
+
+(defn- site-row [ledger {:keys [site-id name jurisdiction] :as site}]
+  (format "        <tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+          (esc site-id) (esc name) (esc jurisdiction)
+          (reg-cell site)
+          (status-cell ledger site-id)))
+
+(defn- ledger-row [{:keys [t op site-id disposition basis]}]
   (format "        <tr><td>%s</td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>"
-          (esc (str t)) (esc (str (or op :n-a))) (esc subject)
-          (esc (or (some->> basis (map str) (str/join ", ")) (some-> disposition str) ""))))
-(def ^:private gate-rows
-  ["        <tr><td><code>:log-safety-inspection-record</code></td><td><span class=\"warn\">phase-1 always approval; phase-3 auto-commit when clean</span></td></tr>"
-   "        <tr><td><code>:draft-licensing-submission</code></td><td><span class=\"warn\">ALWAYS human approval</span></td></tr>"
-   "        <tr><td><code>:flag-safety-concern</code></td><td><span class=\"warn\">ALWAYS human approval (safety)</span></td></tr>"
-   "        <tr><td><code>:log-fuel-custody-record</code></td><td><span class=\"warn\">registered + verified site required</span></td></tr>"
-   "        <tr><td><code>:draft-community-benefit-report</code></td><td><span class=\"warn\">ALWAYS human approval</span></td></tr>"])
-(defn render [db]
+          (esc (name (or t :unknown)))
+          (esc (name (or op :n-a)))
+          (esc site-id)
+          (esc (or (some->> basis (map #(if (keyword? %) (name %) %)) (str/join ", "))
+                    (some-> disposition name)
+                    ""))))
+
+(defn- draft-row [prefix {:strs [record_id site_id jurisdiction kind immutable]}]
+  (format "        <tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+          (esc prefix) (esc record_id) (esc site_id) (esc jurisdiction)
+          (if immutable "<span class=\"ok\">immutable draft</span>" (esc kind))))
+
+(defn- coordination-row [{:keys [op site-id]}]
+  (format "        <tr><td><code>%s</code></td><td>%s</td></tr>"
+          (esc (name (or op :n-a))) (esc site-id)))
+
+(def ^:private action-gate-rows
+  ;; Static description of this actor's own closed op contract
+  ;; (`smrops.governor` / `smrops.phase`) -- documentation of fixed
+  ;; behavior, not runtime telemetry, so it is legitimately hand-
+  ;; described rather than derived from a live run.
+  ["        <tr><td><code>:log-safety-inspection-record</code></td><td><span class=\"ok\">phase-3 auto-commit when clean</span> &middot; phase-1 always human approval &middot; facility must be registered+verified</td></tr>"
+   "        <tr><td><code>:draft-licensing-submission</code></td><td><span class=\"ok\">phase-3 auto-commit when clean with official <code>smrops.facts</code> spec-basis</span> &middot; HARD hold on fabrication / missing citation</td></tr>"
+   "        <tr><td><code>:log-fuel-custody-record</code></td><td><span class=\"ok\">phase-3 auto-commit when clean</span> &middot; draft chain-of-custody log only, never live fuel handling</td></tr>"
+   "        <tr><td><code>:draft-community-benefit-report</code></td><td><span class=\"ok\">phase-3 auto-commit when clean</span> &middot; unsigned draft report only</td></tr>"
+   "        <tr><td><code>:flag-safety-concern</code></td><td><span class=\"warn\">ALWAYS human approval</span> &middot; never auto at any phase (governor <code>always-escalate-ops</code> + phase table both agree)</td></tr>"
+   "        <tr><td><code>:log-power-supply-agreement</code></td><td><span class=\"warn\">phase-2+: human approval</span> &middot; never auto in this V1 (stricter than the other recordkeeping ops)</td></tr>"
+   "        <tr><td>scope / absolute actuation</td><td><span class=\"critical\">HARD permanent holds</span> &middot; control-rod / scram / criticality / radiological-release / containment-override / evacuation / fuel-sequencing / security-force are structurally excluded; a live authorization request is re-checked at <code>:commit</code></td></tr>"])
+
+(defn render
+  "Renders the full operator-console.html document from a store `db`
+  that has already run `run-demo!` (or any other real scenario)."
+  [db]
   (let [ledger (vec (store/ledger db))
-        sites (->> (store/all-sites db) (sort-by :id))
-        srow (fn [s] (format "        <tr><td>%s</td><td>%s</td><td>%s</td></tr>" (esc (:id s)) (esc (or (:status s) "-")) (status-cell ledger (:id s))))
-        srows (str/join "\n" (map srow sites))
-        lrows (str/join "\n" (map ledger-row ledger))]
-    (str "<html><head><meta charset=\"utf-8\"><title>cloud-itonami-isic-3511</title>"
-     "<style>body{font:14px/1.5 sans-serif;margin:0;color:#1a1a1a;background:#f5f5f5}"
-     ".bar{background:#1a2a1a;color:#fff;padding:1.2rem 2rem}.bar h1{margin:0;font-size:1.15rem}"
-     "main{max-width:980px;margin:1.5rem auto;padding:0 1rem}"
-     ".card{background:#fff;border-radius:8px;padding:1.2rem 1.4rem;margin-bottom:1.2rem;box-shadow:0 1px 3px rgba(0,0,0,.08)}"
-     ".muted{color:#777;font-size:.82rem}table{border-collapse:collapse;width:100%;font-size:.85rem}"
-     "th,td{text-align:left;padding:.42rem .5rem;border-bottom:1px solid #eee}th{font-weight:600;color:#555}"
-     ".ok{color:#0a7d33}.warn{color:#9a6700}.critical{color:#b41010;font-weight:600}"
-     "code{background:#f0f0f0;padding:.1rem .3rem;border-radius:3px;font-size:.8rem}</style></head><body>"
-     "<header class=\"bar\"><h1>SMR nuclear ops (ISIC 3511) — <code>smrops</code></h1></header><main>"
-     "<section class=\"card\"><h2>Sites</h2>"
-     "<p class=\"muted\">Demo from <code>smrops.store</code> via <code>smrops.render-html</code>. No invented data.</p>"
-     "<table><thead><tr><th>Site</th><th>Status</th><th>Last op</th></tr></thead><tbody>" srows "</tbody></table></section>"
-     "<section class=\"card\"><h2>Action gate</h2>"
-     "<table><thead><tr><th>Op</th><th>Gate</th></tr></thead><tbody>" (str/join "\n" gate-rows) "</tbody></table></section>"
-     "<section class=\"card\"><h2>Audit ledger</h2>"
-     "<table><thead><tr><th>Fact</th><th>Op</th><th>Subject</th><th>Basis</th></tr></thead><tbody>" lrows "</tbody></table></section>"
-     "</main></body></html>")))
+        sites (store/all-sites db)
+        site-rows (str/join "\n" (map (partial site-row ledger) sites))
+        ledger-rows (str/join "\n" (map ledger-row ledger))
+        licensing-rows (str/join "\n" (map (partial draft-row "licensing-submission")
+                                           (store/licensing-submission-history db)))
+        fuel-rows (str/join "\n" (map (partial draft-row "fuel-custody")
+                                      (store/fuel-custody-history db)))
+        coord-rows (str/join "\n" (map coordination-row (store/coordination-log db)))]
+    (str
+     "<html><head><meta charset=\"utf-8\"><title>cloud-itonami-isic-3511 &middot; electric power generation by nuclear power plants (SMR ops coordination)</title><style>"
+     (jp-go-dds.skin/dds+skin)
+     "</style></head><body>\n"
+     "<header class=\"bar\">\n"
+     "  <h1>Electric power generation by nuclear power plants — SMR ops coordination (ISIC 3511) — Operator Console</h1>\n"
+     "  <span class=\"badge\">read-only sample · governor-gated · compliance recordkeeping only · never control-rod / scram / radiological-release actuation</span>\n"
+     "</header>\n"
+     "<main>\n"
+     "  <section class=\"card\">\n"
+     "    <h2>SMR facilities</h2>\n"
+     "    <p class=\"muted\">Demo snapshot — build-time-generated from <code>smrops.store</code> via <code>smrops.render-html</code> (<code>clojure -M:dev:render-html</code>), regenerated nightly. No invented data.</p>\n"
+     "    <table>\n"
+     "      <thead><tr><th>Site</th><th>Name</th><th>Jurisdiction</th><th>Registration</th><th>Last op status</th></tr></thead>\n"
+     "      <tbody>\n"
+     site-rows "\n"
+     "      </tbody>\n"
+     "    </table>\n"
+     "  </section>\n"
+     "  <section class=\"card\">\n"
+     "    <h2>Draft licensing-submission / fuel-custody records</h2>\n"
+     "    <p class=\"muted\">Unsigned drafts only — the licensed operator/counsel's own act of filing a licensing submission or logging a real fuel transfer is outside this actor's authority (see README <code>Actuation</code>).</p>\n"
+     "    <table>\n"
+     "      <thead><tr><th>Kind</th><th>Record id</th><th>Site</th><th>Jurisdiction</th><th>Status</th></tr></thead>\n"
+     "      <tbody>\n"
+     licensing-rows (when (seq licensing-rows) "\n")
+     fuel-rows "\n"
+     "      </tbody>\n"
+     "    </table>\n"
+     "  </section>\n"
+     "  <section class=\"card\">\n"
+     "    <h2>Committed coordination log</h2>\n"
+     "    <p class=\"muted\">Generic committed proposals (safety-inspection logs, community-benefit drafts, safety-concern flags, plus the draft ops above once they commit).</p>\n"
+     "    <table>\n"
+     "      <thead><tr><th>Op</th><th>Site</th></tr></thead>\n"
+     "      <tbody>\n"
+     coord-rows "\n"
+     "      </tbody>\n"
+     "    </table>\n"
+     "  </section>\n"
+     "  <section class=\"card\">\n"
+     "    <h2>Action gate (SmrOperationsGovernor)</h2>\n"
+     "    <p class=\"muted\">HARD holds cannot be overridden by a human approver. Facility registration/verification, <code>:effect :propose</code>, official licensing spec-basis, permanent scope exclusions, and absolute live-actuation requests are independently recomputed, never trusted from the advisor's proposal. A safety-concern flag always reaches a human; a live radiological-release or scram authorization request never does.</p>\n"
+     "    <table>\n"
+     "      <thead><tr><th>Op</th><th>Gate</th></tr></thead>\n"
+     "      <tbody>\n"
+     (str/join "\n" action-gate-rows) "\n"
+     "      </tbody>\n"
+     "    </table>\n"
+     "  </section>\n"
+     "  <section class=\"card\">\n"
+     "    <h2>Audit ledger (this run)</h2>\n"
+     "    <p class=\"muted\">Append-only decision-fact log — every commit and HARD hold this scenario produced (approval handoff is checkpointed in-graph; the ledger records terminal outcomes).</p>\n"
+     "    <table>\n"
+     "      <thead><tr><th>Fact</th><th>Op</th><th>Site</th><th>Basis</th></tr></thead>\n"
+     "      <tbody>\n"
+     ledger-rows "\n"
+     "      </tbody>\n"
+     "    </table>\n"
+     "  </section>\n"
+     "</main>\n"
+     "</body></html>\n")))
+
 (defn -main [& args]
   (let [out (or (first args) "docs/samples/operator-console.html")
-        db (run-demo!) f (java.io.File. out)]
-    (.. f getParentFile mkdirs) (spit f (render db))
-    (println "wrote" out "(" (count (store/ledger db)) "ledger facts )")))
+        f (java.io.File. out)
+        _ (some-> (.getParentFile f) .mkdirs)
+        db (run-demo!)
+        html (render db)]
+    (spit f html)
+    (println "wrote" out "(" (count (store/ledger db)) "ledger facts,"
+             (count (store/licensing-submission-history db)) "licensing drafts,"
+             (count (store/fuel-custody-history db)) "fuel-custody drafts,"
+             (count (store/coordination-log db)) "coordination commits )")))

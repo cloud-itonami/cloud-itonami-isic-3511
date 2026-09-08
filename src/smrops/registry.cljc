@@ -22,7 +22,7 @@
   performs or authorizes an actual reactor-safety-critical action --
   see `smrops.governor`'s scope-exclusion and absolute-actuation-
   request checks)."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (defn- unsigned-certificate
   "Every certificate this actor produces is UNSIGNED -- signature is
@@ -54,7 +54,7 @@
     (throw (ex-info "licensing-submission: jurisdiction required" {})))
   (when (< sequence 0)
     (throw (ex-info "licensing-submission: sequence must be >= 0" {})))
-  (let [submission-number (str (str/upper-case jurisdiction) "-LIC-" (zero-pad sequence 6))
+  (let [submission-number (str (str/upper jurisdiction) "-LIC-" (zero-pad sequence 6))
         record {"record_id" submission-number
                 "kind" "licensing-submission-draft"
                 "site_id" site-id
@@ -75,7 +75,7 @@
     (throw (ex-info "fuel-custody: jurisdiction required" {})))
   (when (< sequence 0)
     (throw (ex-info "fuel-custody: sequence must be >= 0" {})))
-  (let [custody-number (str (str/upper-case jurisdiction) "-FUEL-" (zero-pad sequence 6))
+  (let [custody-number (str (str/upper jurisdiction) "-FUEL-" (zero-pad sequence 6))
         record {"record_id" custody-number
                 "kind" "fuel-custody-record"
                 "site_id" site-id

@@ -159,7 +159,7 @@ scope-excluded/absolute-actuation territory are never in any phase's
 `:auto` set), `smrops.operation` (a `langgraph-clj` StateGraph: intake
 → advise → govern → decide → commit | hold | request-approval, with
 the Decision 3 redundant check at `:commit`), `smrops.sim` (demo
-driver, `clojure -M:run`).
+driver, `kbb -M:run`).
 
 ### Decision 5: string-keyed site directory, ADR-2607152100's bug class avoided from the start
 

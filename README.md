@@ -154,9 +154,9 @@ above.
 ## Run
 
 ```bash
-clojure -M:run     # walk one clean lifecycle + all HARD-hold cases (including the absolute block) through the actor
-clojure -M:test    # governor contract · phase invariants · store parity · registry conformance · facts coverage
-clojure -M:lint     # clj-kondo (errors fail; CI mirrors this)
+kbb -M:run     # walk one clean lifecycle + all HARD-hold cases (including the absolute block) through the actor
+kbb -M:test    # governor contract · phase invariants · store parity · registry conformance · facts coverage
+kbb -M:lint     # clj-kondo (errors fail; CI mirrors this)
 ```
 
 ## Open business

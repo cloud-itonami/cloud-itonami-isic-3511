@@ -9,7 +9,7 @@
   phase-3 auto eligibility. This namespace drives the REAL actor stack
   (`smrops.operation` -> `smrops.governor` -> `smrops.store`) through a
   scenario adapted from this repo's own `smrops.sim` demo driver
-  (`clojure -M:dev:run`, confirmed against the seeded site ids
+  (`kbb -M:dev:run`, confirmed against the seeded site ids
   `smr-site-1`..`smr-site-3` in `smrops.store/demo-data`), covering
   phase-1 escalate+approve, phase-3 auto-commits, always-escalate
   safety-concern, and distinct HARD holds (unregistered facility,
@@ -17,7 +17,7 @@
   scope-excluded, absolute live-actuation request). Every field the
   page reads is real governor/store output -- no invented data.
 
-  Usage: `clojure -M:dev:render-html [out-file]`
+  Usage: `kbb -M:dev:render-html [out-file]`
   (default `docs/samples/operator-console.html`)."
   (:require [jp-go-dds.skin]
             [kotoba.lang.text :as str]
@@ -249,7 +249,7 @@
      "<main>\n"
      "  <section class=\"card\">\n"
      "    <h2>SMR facilities</h2>\n"
-     "    <p class=\"muted\">Demo snapshot — build-time-generated from <code>smrops.store</code> via <code>smrops.render-html</code> (<code>clojure -M:dev:render-html</code>), regenerated nightly. No invented data.</p>\n"
+     "    <p class=\"muted\">Demo snapshot — build-time-generated from <code>smrops.store</code> via <code>smrops.render-html</code> (<code>kbb -M:dev:render-html</code>), regenerated nightly. No invented data.</p>\n"
      "    <table>\n"
      "      <thead><tr><th>Site</th><th>Name</th><th>Jurisdiction</th><th>Registration</th><th>Last op status</th></tr></thead>\n"
      "      <tbody>\n"

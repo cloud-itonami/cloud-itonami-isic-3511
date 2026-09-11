@@ -20,6 +20,6 @@ security-force response decisions (see README.md).
 - Security-force response decisions.
 - Anything that is itself a live request to authorize one of the above --
   this is a SEPARATE, stronger, permanently un-overridable block from the
-  scope exclusions above (see `src/smrops/governor.cljc`).
+  scope exclusions above (see `src/smrops/governor.cljk`).
 
 Contributions that cross these boundaries will be rejected.

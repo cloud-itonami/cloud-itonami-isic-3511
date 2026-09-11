@@ -7,7 +7,7 @@
  ;; a compliance-recordkeeping coordination actor, never a physical-
  ;; actuation one -- it never touches control-rod operation, a
  ;; reactor-trip/scram decision, or any other reactor-safety-critical
- ;; act, see src/smrops/governor.cljc).
+ ;; act, see src/smrops/governor.cljk).
  ;; jp-go-digital-design-system: DADS skin for the build-time operator
  ;; console (flagship checklist item 2 / ADR-2607189300).
  :deps {

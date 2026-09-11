@@ -124,7 +124,7 @@ This is belt-and-suspenders specifically for the one failure mode this
 actor's charter can never tolerate under any circumstance -- including
 a latent wiring bug, a future refactor that adds a new path into
 `:commit`, or a compromised advisor racing a legitimate approval.
-`test/smrops/governor_contract_test.clj`'s
+`test/smrops/governor_contract_test.cljk`'s
 `commit-node-independently-re-blocks-absolute-actuation-content`
 exercises this directly by calling `smrops.operation/commit-node` with
 a `:record` that would otherwise commit, proving the redundant check
@@ -173,7 +173,7 @@ KEYWORD site-ids while every governor/advisor lookup used the STRING
 on every call and masked itself as HARD `:site-unverified` holds
 across 10 assertions. This build keys consistently on the string from
 the start, matching `ligniteops.store`'s own fix, and
-`test/smrops/store_contract_test.clj`'s `seed-db-read-parity` /
+`test/smrops/store_contract_test.cljk`'s `seed-db-read-parity` /
 `mem-store-honors-explicit-sites-map` tests exercise string-keyed
 lookups directly.
 

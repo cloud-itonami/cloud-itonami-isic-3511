@@ -81,8 +81,8 @@ actuation request rather than a record/draft, and it is the ONE check
 in this actor's governor that is re-checked a SECOND, independent time
 -- directly in `smrops.operation`'s `:commit` node, immediately before
 any SSoT write -- so no upstream wiring bug, refactor, or race could
-ever let it through. See `src/smrops/governor.cljc` and
-`src/smrops/operation.cljc` for the full reasoning.
+ever let it through. See `src/smrops/governor.cljk` and
+`src/smrops/operation.cljk` for the full reasoning.
 
 ## Operations
 
@@ -143,7 +143,7 @@ enforce the "never a live actuation" invariant for the actor's op
 surface as a whole (`smrops.governor`'s scope-exclusion + absolute-
 actuation-request checks, and `smrops.phase`'s phase table, which
 never puts `:flag-safety-concern` in any phase's `:auto` set) --
-see `smrops.phase`'s docstring and `test/smrops/phase_test.clj`'s
+see `smrops.phase`'s docstring and `test/smrops/phase_test.cljk`'s
 `safety-concern-never-auto-at-any-phase`. The actor may draft, log and
 recommend; a human compliance officer or licensed operator always
 signs, files or publishes the real record. A THIRD, independent
@@ -192,14 +192,14 @@ requirements to make coverage look bigger.
 
 | File | Role |
 |---|---|
-| `src/smrops/store.cljc` | **Store** protocol -- `MemStore`, string-keyed SMR-facility directory (never a keyword -- ADR-2607152100's bug class avoided from the start) + append-only audit ledger + separate licensing-submission/fuel-custody-record history |
-| `src/smrops/registry.cljc` | Licensing-submission-draft + fuel-custody-record construction, unsigned certificates, jurisdiction-scoped sequence numbers |
-| `src/smrops/facts.cljc` | Per-jurisdiction SMR-licensing regulatory catalog with an official spec-basis citation per entry, honest coverage reporting |
-| `src/smrops/advisor.cljc` | **SmrOpsAdvisor** -- `mock-advisor` ‖ `llm-advisor`; five-op proposal drafting, `:out-of-scope?` and `:absolute-actuation-test?` failure-mode hooks |
-| `src/smrops/governor.cljc` | **SmrOperationsGovernor** -- 5 HARD checks (facility-unverified · effect-not-propose · spec-basis fabrication · scope-exclusion · absolute live-actuation request) + 1 soft (confidence/always-escalate gate) |
-| `src/smrops/phase.cljc` | **Phase 0→3** -- read-only → assisted inspection → assisted recordkeeping → supervised (four draft/log ops auto-eligible at phase 3; safety-concern flag always human) |
-| `src/smrops/operation.cljc` | **OperationActor** -- langgraph-clj StateGraph, with a redundant `:commit`-node re-check of the absolute live-actuation-request condition |
-| `src/smrops/sim.cljc` | demo driver |
+| `src/smrops/store.cljk` | **Store** protocol -- `MemStore`, string-keyed SMR-facility directory (never a keyword -- ADR-2607152100's bug class avoided from the start) + append-only audit ledger + separate licensing-submission/fuel-custody-record history |
+| `src/smrops/registry.cljk` | Licensing-submission-draft + fuel-custody-record construction, unsigned certificates, jurisdiction-scoped sequence numbers |
+| `src/smrops/facts.cljk` | Per-jurisdiction SMR-licensing regulatory catalog with an official spec-basis citation per entry, honest coverage reporting |
+| `src/smrops/advisor.cljk` | **SmrOpsAdvisor** -- `mock-advisor` ‖ `llm-advisor`; five-op proposal drafting, `:out-of-scope?` and `:absolute-actuation-test?` failure-mode hooks |
+| `src/smrops/governor.cljk` | **SmrOperationsGovernor** -- 5 HARD checks (facility-unverified · effect-not-propose · spec-basis fabrication · scope-exclusion · absolute live-actuation request) + 1 soft (confidence/always-escalate gate) |
+| `src/smrops/phase.cljk` | **Phase 0→3** -- read-only → assisted inspection → assisted recordkeeping → supervised (four draft/log ops auto-eligible at phase 3; safety-concern flag always human) |
+| `src/smrops/operation.cljk` | **OperationActor** -- langgraph-clj StateGraph, with a redundant `:commit`-node re-check of the absolute live-actuation-request condition |
+| `src/smrops/sim.cljk` | demo driver |
 | `test/smrops/*_test.clj` | governor contract (full-graph) · governor unit tests · advisor · phase invariants · store parity · registry conformance · facts coverage |
 
 ## License

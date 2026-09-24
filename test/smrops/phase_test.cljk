@@ -4,7 +4,7 @@
   phase's `:auto` set, and no other actual-actuation-adjacent op
   exists in `smrops.governor/allowed-ops` at all (the closed
   five-op allowlist is entirely draft/log ops)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [smrops.governor :as governor]
             [smrops.phase :as phase]))
 

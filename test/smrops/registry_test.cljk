@@ -1,5 +1,5 @@
 (ns smrops.registry-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [smrops.registry :as registry]))
 
 (deftest register-licensing-submission-draft-builds-numbered-record

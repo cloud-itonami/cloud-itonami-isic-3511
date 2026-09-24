@@ -10,7 +10,7 @@
     scram authorization request is blocked ABSOLUTELY and never even
     reaches a human, and every decision (commit OR hold) leaves
     exactly one ledger fact."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [smrops.advisor :as advisor]
             [smrops.store :as store]
